@@ -1,0 +1,139 @@
+import processing.serial.*;    // Importing the serial library to communicate with the Arduino v
+import java.lang.*;
+
+
+Serial myPort;
+
+int nLinks = 3;
+int nGripperAngles = 5;
+int GripperAngle[] = {0, -45, 90, 45, 90};
+int l[] = {0, 100, 100, 60};
+int h0 = 180; //Arm Origen in Screen Coordinates
+int v0 = 360; //Arm Origen in Screen Coordinates
+int currGripper = 0;
+
+float[] w = new float[nLinks]; //3 pct orizont
+float[] z = new float[nLinks]; //..verticala
+float[] a = new float[nLinks];  //unghi
+float tw, tz; //mouse
+float tw0, tz0; //locatiap reced a mouse 
+float l12;
+float a12;
+float ang = 180;
+
+void keyPressed(){
+      if ((key == 'q' || key == 'Q') && ang<270) {
+      ang=ang+2;
+    }
+    else if((key == 'w' || key == 'W')&& ang>90){
+   ang=ang-2;
+  }
+    ////else if (key == 'x' || key == 'X'){
+    //      myPort.write ( "b " +(210-90));
+    //myPort.write('\n');
+    //  myPort.write ( "s1 " + 92);
+    //myPort.write('\n');
+    //delay(20);
+    //myPort.write ( "s2 " + 141);
+    //myPort.write('\n');
+    //delay(20);
+    //myPort.write ( "s3 " + 139);
+    //myPort.write('\n');
+    //delay(20);
+    ////}
+}
+
+void setup() {
+  size(800, 560); //drawing window size
+  myPort  =  new Serial (this, "COM9",  9600); 
+  //String s = new String (myPort.bufferUntil ( '\n' ));   // Receiving the data from the Arduino IDE
+  
+  //print(s);
+
+  smooth(); 
+  w[0] = 0;  // Set Origen
+  z[0] = 0;  // Set Origen
+  tw0=100; // Initiakl Target
+  tz0=100;
+}
+
+void draw() {
+  background(240);
+  //checkMouseInMenu(mouseX, mouseY);
+  tw = mouseX - h0;
+  tz = v0 - mouseY ;
+  calcP2();
+  if (l12>l[1]+l[2]){
+    tw=tw0;
+    tz=tz0;
+    calcP2();
+  }
+    calcP1();
+    drawLinks();
+    tw0=tw;
+    tz0=tz;
+    
+    double p1 = atan2(w[1]-w[0], z[1]-z[0]) * 180 / PI;
+    double p2 = atan2(w[2]-w[1], z[2]-z[1]) * 180 / PI;
+    
+    double S1 = -p1 + 130;
+    double S2 = p2-p1+40;
+    double S3 = p2;
+    
+    
+    
+    myPort.write ( "s1 " + S1);
+    myPort.write('\n');
+    delay(20);
+    myPort.write ( "s2 " + S2);
+    myPort.write('\n');
+    delay(20);
+    myPort.write ( "s3 " + S3);
+    myPort.write('\n');
+    delay(20);
+    //print(S2 + " " + S3);
+    //print('\n');
+    
+    strokeWeight(12);
+    //rotate(radians(ang));
+    float x1 = sin(radians(ang)) * 150 + 600;
+    float y1 = cos(radians(ang)) * 150 + 350;
+    line(600, 350, x1, y1);
+    //line(600, 350, 600, 200);
+    fill(0);
+    strokeWeight(0);
+    stroke(0);
+    myPort.write ( "b " +(ang-90));
+    myPort.write('\n');
+    print("baza"+ ang +" S1="+ S1 + " S2=" + S2 + " S3=" + S3 + '\n');
+}
+
+void calcP2(){
+  w[2]=tw-cos(radians(GripperAngle[currGripper]))*l[3];
+  z[2]=tz-sin(radians(GripperAngle[currGripper]))*l[3];
+  l12 = sqrt(sq(w[2])+sq(z[2]));
+}
+
+void calcP1(){
+  a12=atan2(z[2],w[2]);
+  a[1]=acos((sq(l[1])+sq(l12)-sq(l[2]))/(2*l[1]*l12))+a12;
+  w[1]=cos(a[1])*l[1];
+  z[1]=sin(a[1])*l[1];
+  //print(z[1]);
+  //print('\n');
+}
+
+void drawLinks(){
+  for(int i=0; i<2; i++) {  
+    strokeWeight(12);
+    stroke(#000000);
+    line(h0+w[i], v0-z[i],h0+w[i+1], v0-z[i+1]);
+  }
+  strokeWeight(12);
+  stroke(#000000);
+  line(h0+w[2], v0-z[2],h0+ tw,v0- tz);
+  fill(0);
+  strokeWeight(0);
+  stroke(0);
+  ellipse(h0+ tw,v0- tz,10,10);
+}
